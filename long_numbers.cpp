@@ -95,38 +95,13 @@ public:
     // no arguments constructor (aka 0)
     LongNumber() : precision(0), point_id(0), sign(0), digits({0}) {};
 
-    // string constructors
-    LongNumber(std::string num){
+    // string constructor
+    LongNumber(std::string num, int prec=0) : precision(prec), point_id(prec) {
         std::string integer_str = num.find('.') == std::string::npos ? num : num.substr(0, num.find('.'));
         std::string fraction_str = num.find('.') == std::string::npos ? "" : num.substr(num.find('0') + 1);
 
-        this->sign = num[0] == '-' ? 1 : 0;
-        if (this->sign == 1){ num = integer_str.substr(1); }
-
-        auto integer_val = std::stoull(integer_str);
-        while (integer_val > 0){
-            digits.insert(digits.begin(), integer_val % 2);
-            integer_val /= 2;
-        }
-
-        auto fraction_val = fraction_str.empty() ? 0.0 : std::stoull("0." + fraction_str);
-        for (int i = 0; i < fraction_str.size(); i++) {
-            fraction_val *= 2;
-            digits.push_back(fraction_val >= 1.0);
-            if (fraction_val >= 1.0) {
-               fraction_val -= 1.0;
-            }
-        }
-
-        normalize();
-    };
-
-    LongNumber(std::string num, int prec) : precision(prec), point_id(prec) {
-        std::string integer_str = num.find('.') == std::string::npos ? num : num.substr(0, num.find('.'));
-        std::string fraction_str = num.find('.') == std::string::npos ? "" : num.substr(num.find('0') + 1);
-
-        this->sign = num[0] == '-' ? 1 : 0;
-        if (this->sign == 1){ num = integer_str.substr(1); }
+        this->sign = (num[0] == '-');
+        if (this->sign){ num = integer_str.substr(1); }
 
         auto integer_val = std::stoull(integer_str);
         while (integer_val > 0){
@@ -139,19 +114,20 @@ public:
         for (int i = 0; i < precision; i++) {
             fraction_val *= 2;
             digits.push_back(fraction_val >= 1.0);
-            if (fraction_val >= 1.0) {
-               fraction_val -= 1.0;
-            }
+            if (fraction_val >= 1.0) { fraction_val -= 1.0; }
         }
+
+        this->point_id = this->digits.size() - this->precision;
 
         normalize();
     }
 
-    // long double constructors
-    LongNumber(long double num){
-        this->sign = num < 0 ? 1 : 0; 
+    // long double constructor
+    LongNumber(long double num, int prec=0) : precision(prec), point_id(prec){
+        this->sign = num < 0 ? 1 : 0;
+        num = std::abs(num);
 
-        auto integer_val = static_cast<unsigned int>(num);
+        auto integer_val = static_cast<unsigned long long>(num);
         auto fraction_val = num - integer_val;
 
         while (integer_val > 0){
@@ -167,27 +143,7 @@ public:
             }
         }
 
-        normalize();
-    };
-
-    LongNumber(long double num, int prec) : precision(prec), point_id(prec){
-        this->sign = num < 0 ? 1 : 0; 
-
-        auto integer_val = static_cast<unsigned int>(num);
-        auto fraction_val = num - integer_val;
-
-        while (integer_val > 0){
-            digits.insert(digits.begin(), integer_val % 2);
-            integer_val /= 2;
-        }
-
-        for (int i = 0; i < precision; i++) {
-            fraction_val *= 2;
-            digits.push_back(fraction_val >= 1.0);
-            if (fraction_val >= 1.0) {
-               fraction_val -= 1.0;
-            }
-        }
+        this->point_id = this->digits.size() - this->precision;
 
         normalize();
     };
@@ -196,8 +152,18 @@ public:
     LongNumber(const LongNumber& other){
         this->sign = other.getSign();
         this->digits = other.getDigits();
+        this->point_id = other.getPointId();
         this->precision = other.getPrecision();
     };
+
+    // copy operator
+    LongNumber& operator = (const LongNumber& other){
+        this->digits = other.getDigits();
+        this->point_id = other.getPointId();
+        this->sign = other.getSign();
+        this->precision = other.getPrecision();
+        return *this;
+    }
 
     //destructor
     ~LongNumber() = default;
@@ -251,6 +217,7 @@ public:
     };
 
     LongNumber operator - (LongNumber const& other) const{
+        // a - b = a + (-b)
         LongNumber new_other = other;
         if (other.getSign() == 1){ new_other.setSign(0); }
         else{ new_other.setSign(1); }
@@ -275,7 +242,6 @@ public:
             }
         }
 
-        // overflow
         for (auto i = 0; i < temp_res.size() - 1; i++) {
             if (temp_res[i] >= 2) {
                 temp_res[i + 1] += temp_res[i] / 2;
@@ -315,14 +281,11 @@ public:
             // <<res
             temp_res.push_back(0);
 
-            // Добавляем текущий бит делимого к временному делимому
             temp_dividend_digits.push_back(dividend_digits[i]);
             temp_dividend.setDigits(temp_dividend_digits);
             temp_dividend.normalize();
 
-            // Если временное делимое больше или равно делителю
             if (temp_dividend >= divisor) {
-                // Вычитаем делитель из временного делимого
                 temp_dividend = temp_dividend - divisor;
                 temp_res.back() = 1;
             }
@@ -408,11 +371,11 @@ public:
     };
     }; // end of class LongNumber
 
-    LongNumber operator ""_longnum(long double num){
+    /*LongNumber operator ""_longnum(long double num){
         return LongNumber(num);
     };
 
     LongNumber operator ""_longnum(unsigned long long num){
         return LongNumber(static_cast<long double>(num));
-    };
+    };*/
 } // namespace LongNumbers

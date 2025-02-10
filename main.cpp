@@ -1,4 +1,6 @@
 #include "long_numbers.hpp"
+#include <iostream>
+using namespace LongNumbers;
 
 int main() {
     LongNumber num1(10.625, 3); // 10.625 в десятичной = 1010.101 в двоичной
