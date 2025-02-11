@@ -61,19 +61,22 @@ public:
         while (this->digits.size() > this->point_id && this->digits.front() == 0) {
             this->digits.erase(this->digits.begin());
         }
-        while ((this->digits.size() - this->point_id) < this->precision){
+        while (this->point_id < this->precision){
             this->digits.push_back(0);
+            this->point_id++;
         }
-        while ((this->digits.size() - this->point_id) > this->precision){
+        while (this->point_id > this->precision){
             this->digits.pop_back();
+            this->point_id--;
         }
     }
 
     // for division operator
     void alignPrecision(LongNumber const& other) {
         auto max_precision = std::max(this->precision, other.getPrecision());
-        while ((this->digits.size() - this->point_id) < max_precision) {
+        while (this->point_id < max_precision) {
             this->digits.push_back(0);
+            this->point_id++;
         }
     }
 
@@ -303,7 +306,6 @@ public:
         std::vector<short> other_digits = other.getDigits();
         auto max_size = std::max(this->digits.size(), other_digits.size());
 
-        // checking integers
         for (auto i = 0; i < max_size; i++) {
             short this_digit = (i < this->digits.size()) ? this->digits[i] : 0;
             short other_digit = (i < other_digits.size()) ? other_digits[i] : 0;
