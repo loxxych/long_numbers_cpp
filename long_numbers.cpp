@@ -327,13 +327,14 @@ public:
         if (this->sign == 1 && other.getSign() == 0){ return false; }
         if (this->sign == 0 && other.getSign() == 1){ return true; }
         
-        // signs differ ->
-        // checking the integer parts
-        // lengths of the integers differ
+        // signs are the same
+        // -> checking the integer parts
+
+        // lengths of the integers differ:
         if (this->point_id > other.getPointId()){ return this->sign == 0; }
         if (this->point_id < other.getPointId()){ return this->sign != 0; }
 
-        // lengths of the integers match
+        // lengths of the integers match:
         std::vector<short> other_digits = other.getDigits();
         for (auto i = 0; i < this->point_id; i++) {
             if (this->digits[i] > other_digits[i]) {
@@ -373,11 +374,11 @@ public:
     };
     }; // end of class LongNumber
 
-    /*LongNumber operator ""_longnum(long double num){
+    LongNumber operator ""_longnum(long double num){
         return LongNumber(num);
     };
 
     LongNumber operator ""_longnum(unsigned long long num){
         return LongNumber(static_cast<long double>(num));
-    };*/
+    };
 } // namespace LongNumbers

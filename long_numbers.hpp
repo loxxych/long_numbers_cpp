@@ -57,8 +57,8 @@ namespace LongNumbers {
         bool operator < (const LongNumber& other) const;
     };
 
-    /*LongNumber operator ""_longnum(long double num);
-    LongNumber operator ""_longnum(unsigned long long num);*/
+    //LongNumber operator ""_longnum(long double num);
+    //LongNumber operator ""_longnum(unsigned long long num);
 
 }
 
