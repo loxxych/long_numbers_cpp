@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "long_numbers.hpp" // Подключите ваш заголовочный файл
+#include "long_numbers.hpp"
 
 using namespace LongNumbers;
 
