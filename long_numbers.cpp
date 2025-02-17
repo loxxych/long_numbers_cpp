@@ -1,55 +1,48 @@
 #include <vector>
 #include <string>
 #include <math.h>
-#include <long_numbers.hpp>
+#include <algorithm>
+#include <sstream>
+#include "long_numbers.hpp"
 
 namespace LongNumbers{
-class LongNumber{
-
-private:
-    std::vector<short> digits; // digits in binary
-    unsigned long int point_id; // index of the point in digits
-    bool sign; // - = 1, + = 0
-    int precision;
-
-public:
     // getters
-    std::vector<short> getDigits() const{
+    std::vector<short> LongNumber::getDigits() const{
         return this->digits;
     }
 
-    unsigned long int getPointId() const{
+    unsigned long int LongNumber::getPointId() const{
         return this->point_id;
     }
 
-    bool getSign() const{
+    bool LongNumber::getSign() const{
         return this->sign;
     }
 
-    int getPrecision() const{
+    int LongNumber::getPrecision() const{
         return this->precision;
     }
 
     // setters
-    void setDigits(std::vector<short> new_digits){
+    void LongNumber::setDigits(std::vector<short> new_digits){
         this->digits = new_digits;
     }
 
-    void setPointId(unsigned long int new_id){
+    void LongNumber::setPointId(unsigned long int new_id){
         this->point_id = new_id;
     }
 
-    void setSize(unsigned long int new_size){
+    void LongNumber::setSize(unsigned long int new_size){
         while(this->digits.size() < new_size){
             this->digits.insert(this->digits.begin(), 0);
         }
     }
 
-    void setSign(bool new_sign){
+    void LongNumber::setSign(bool new_sign){
         this->sign = new_sign;
     }
 
-    void setPrecision(int new_precision){
+    void LongNumber::setPrecision(int new_precision){
         this->precision = new_precision;
         normalize();
     }
@@ -57,7 +50,7 @@ public:
     // auxiliary functions
 
     // deletes zeros in the beginning and fixes precision
-    void normalize(){
+    void LongNumber::normalize(){
         while (this->digits.size() > this->point_id && this->digits.front() == 0) {
             this->digits.erase(this->digits.begin());
         }
@@ -72,7 +65,7 @@ public:
     }
 
     // for division operator
-    void alignPrecision(LongNumber const& other) {
+    void LongNumber::alignPrecision(LongNumber const& other) {
         auto max_precision = std::max(this->precision, other.getPrecision());
         while (this->point_id < max_precision) {
             this->digits.push_back(0);
@@ -80,13 +73,13 @@ public:
         }
     }
 
-    LongNumber abs() const{
+    LongNumber LongNumber::abs() const{
         LongNumber res = *this;
         res.setSign(0);
         return res;
     }
 
-    bool isZero() const{
+    bool LongNumber::isZero() const{
         for (auto digit : digits){
             if (digit != 0){ return false; }
         }
@@ -96,12 +89,12 @@ public:
     // constructors
 
     // no arguments constructor (aka 0)
-    LongNumber() : precision(0), point_id(0), sign(0), digits({0}) {};
+    LongNumber::LongNumber() : precision(0), point_id(0), sign(0), digits({0}) {};
 
     // string constructor
-    LongNumber(std::string num, int prec=0) : precision(prec), point_id(prec) {
+    LongNumber::LongNumber(std::string num, int prec) : precision(prec), point_id(prec) {
         std::string integer_str = num.find('.') == std::string::npos ? num : num.substr(0, num.find('.'));
-        std::string fraction_str = num.find('.') == std::string::npos ? "" : num.substr(num.find('0') + 1);
+        std::string fraction_str = num.find('.') == std::string::npos ? "" : num.substr(num.find('.') + 1);
 
         this->sign = (num[0] == '-');
         if (this->sign){ num = integer_str.substr(1); }
@@ -126,33 +119,39 @@ public:
     }
 
     // long double constructor
-    LongNumber(long double num, int prec=0) : precision(prec), point_id(prec){
-        this->sign = num < 0 ? 1 : 0;
+    LongNumber::LongNumber(long double num, int prec) : precision(prec) {
+        this->sign = (num < 0);
         num = std::abs(num);
-
+    
         auto integer_val = static_cast<unsigned long long>(num);
-        auto fraction_val = num - integer_val;
-
-        while (integer_val > 0){
-            digits.insert(digits.begin(), integer_val % 2);
-            integer_val /= 2;
-        }
-
-        for (int i = 0; i < precision; i++) {
-            fraction_val *= 2;
-            digits.push_back(fraction_val >= 1.0);
-            if (fraction_val >= 1.0) {
-               fraction_val -= 1.0;
+        auto fraction_val = num - static_cast<long double>(integer_val);
+    
+        if (integer_val == 0) {
+            digits.push_back(0);
+        } else {
+            while (integer_val > 0) {
+                digits.insert(digits.begin(), integer_val % 2);
+                integer_val /= 2;
             }
         }
-
-        this->point_id = this->digits.size() - this->precision;
-
+    
+        this->point_id = digits.size();
+    
+        for (int i = 0; i < precision; i++) {
+            fraction_val *= 2;
+            if (fraction_val >= 1.0) {
+                digits.push_back(1);
+                fraction_val -= 1.0;
+            } else {
+                digits.push_back(0);
+            }
+        }
         normalize();
-    };
+    }
+    
 
     // copy constructor
-    LongNumber(const LongNumber& other){
+    LongNumber::LongNumber(const LongNumber& other){
         this->sign = other.getSign();
         this->digits = other.getDigits();
         this->point_id = other.getPointId();
@@ -160,7 +159,15 @@ public:
     };
 
     // copy operator
-    LongNumber& operator = (const LongNumber& other){
+    LongNumber& LongNumber::operator = (const LongNumber& other){
+        this->digits = other.getDigits();
+        this->point_id = other.getPointId();
+        this->sign = other.getSign();
+        this->precision = other.getPrecision();
+        return *this;
+    }
+
+    LongNumber& LongNumber::operator = (const LongNumber&& other){
         this->digits = other.getDigits();
         this->point_id = other.getPointId();
         this->sign = other.getSign();
@@ -169,22 +176,25 @@ public:
     }
 
     //destructor
-    ~LongNumber() = default;
+    LongNumber::~LongNumber() = default;
 
     // arithmetic operators
-    LongNumber operator + (const LongNumber& other) const{
+    LongNumber LongNumber::operator + (const LongNumber& other) const{
         std::vector<short> other_digits = other.getDigits();
+        std::vector<short> this_digits = this->digits;
+        size_t res_size = std::max(this_digits.size(), other_digits.size()) + 1;
+        while (this_digits.size() < res_size) this_digits.insert(this_digits.begin(), 0);
+        while (other_digits.size() < res_size) other_digits.insert(other_digits.begin(), 0);
 
         LongNumber res;
-        auto res_size = std::max(this->digits.size(), other_digits.size()) + 1;
         res.setSize(res_size);
         std::vector<short> temp_res(res_size, 0);
 
         bool is_add_op = !(other.getSign() ^ this->sign); // checks if the signs are the same
         bool is_borrow = false;
         if (is_add_op){ // signs are the same, we add
-            for(unsigned long int i = res_size - 1; i >= 0; i--){
-                short sum = (i < this->digits.size() ? this->digits[i] : 0) +
+            for(long int i = res_size - 1; i >= 0; i--){
+                short sum = (i < this_digits.size() ? this_digits[i] : 0) +
                             (i < other_digits.size() ? other_digits[i] : 0) +
                             is_borrow;
                 temp_res[i] = sum % 2;
@@ -219,7 +229,7 @@ public:
         return res;
     };
 
-    LongNumber operator - (LongNumber const& other) const{
+    LongNumber LongNumber::operator - (LongNumber const& other) const{
         // a - b = a + (-b)
         LongNumber new_other = other;
         if (other.getSign() == 1){ new_other.setSign(0); }
@@ -227,7 +237,7 @@ public:
         return *this + new_other;
     };
 
-    LongNumber operator * (LongNumber const& other) const{
+    LongNumber LongNumber::operator * (LongNumber const& other) const{
         LongNumber multiplicand = this->abs();
         LongNumber multiplier = other.abs();
         std::vector<short> multiplicand_digits = multiplicand.getDigits();
@@ -258,7 +268,7 @@ public:
         return res;
     }
 
-    LongNumber operator / (LongNumber const& other) const{
+    LongNumber LongNumber::operator / (LongNumber const& other) const{
         // if (other.isZero()) {
         //     throw std::invalid_argument("Division by zero");
         // }
@@ -282,7 +292,7 @@ public:
 
         for (size_t i = 0; i < dividend_digits.size(); i++) {
             // <<res
-            temp_res.push_back(0);
+            temp_res[i] = 0; // заполняем по индексу
 
             temp_dividend_digits.push_back(dividend_digits[i]);
             temp_dividend.setDigits(temp_dividend_digits);
@@ -298,30 +308,34 @@ public:
         res.normalize();
 
         return res;
-    };
+    }
 
     // comparison operators
-    bool operator == (const LongNumber& other) const{
-        bool abs_equals = true;
+    bool LongNumber::operator == (const LongNumber& other) const {
+        std::vector<short> this_digits = this->digits;
         std::vector<short> other_digits = other.getDigits();
-        auto max_size = std::max(this->digits.size(), other_digits.size());
-
-        for (auto i = 0; i < max_size; i++) {
-            short this_digit = (i < this->digits.size()) ? this->digits[i] : 0;
-            short other_digit = (i < other_digits.size()) ? other_digits[i] : 0;
-            if (this_digit != other_digit) {
-                abs_equals = false;
-                break;
-            }
+    
+        auto max_precision = std::max(this->precision, other.getPrecision());
+        while (this_digits.size() < max_precision + this->point_id) {
+            this_digits.push_back(0);
         }
-        return (this->sign == other.getSign()) && abs_equals;
-    };
+        while (other_digits.size() < max_precision + other.getPointId()) {
+            other_digits.push_back(0);
+        }
+    
+        if (this_digits != other_digits) {
+            return false;
+        }
+    
+        return this->sign == other.getSign();
+    }
+    
 
-    bool operator != (const LongNumber& other) const{
+    bool LongNumber::operator != (const LongNumber& other) const{
         return !(*this == other);
-    };
+    }
 
-    bool operator > (const LongNumber& other) const{
+    bool LongNumber::operator > (const LongNumber& other) const{
         if (*this == other) { return false; }
 
         if (this->sign == 1 && other.getSign() == 0){ return false; }
@@ -359,20 +373,57 @@ public:
                 return !this->sign == 0;
             }
         }
-    };
+        return false;
+    }
 
-    bool operator >= (const LongNumber& other) const{
+    bool LongNumber::operator >= (const LongNumber& other) const{
         return (*this == other || *this > other);
-    };
+    }
 
-    bool operator <= (const LongNumber& other) const{
+    bool LongNumber::operator <= (const LongNumber& other) const{
         return !(*this > other);
-    };
+    }
 
-    bool operator < (const LongNumber& other) const{
+    bool LongNumber::operator < (const LongNumber& other) const{
         return !(*this >= other);
-    };
-    }; // end of class LongNumber
+    }
+
+    //output methods
+    std::string LongNumber::toString() const {
+        std::ostringstream oss;
+
+        if (this->sign) {
+            oss << "-";
+        }
+
+        // binary integer -> decimal integer
+        unsigned long long integer_part = 0;
+        for (size_t i = 0; i < point_id; ++i) {
+            integer_part = integer_part * 2 + digits[i];
+        }
+        oss << integer_part;
+
+        // binary fraction -> decimal fraction
+        if (point_id < digits.size()) {
+            oss << ".";
+            double fractional_part = 0.0;
+            for (size_t i = point_id; i < digits.size(); i++) {
+                fractional_part = fractional_part * 2 + digits[i];
+            }
+
+            // converting to string
+            int precision = this->precision;
+            for (int i = 0; i < precision; i++) {
+                fractional_part *= 10;
+                int digit = static_cast<int>(fractional_part);
+                oss << digit;
+                fractional_part -= digit;
+            }
+        }
+
+        return oss.str();
+    }
+
 
     LongNumber operator ""_longnum(long double num){
         return LongNumber(num);

@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <math.h>
+#include <sstream>
 
 namespace LongNumbers {
     class LongNumber{
@@ -39,7 +40,8 @@ namespace LongNumbers {
         LongNumber(std::string num, int prec=0);
         LongNumber(long double num, int prec=0);
         LongNumber(const LongNumber& other);
-        LongNumber& operator = (LongNumber&& other);
+        LongNumber& operator = (const LongNumber& other);
+        LongNumber& operator = (const LongNumber&& other);
         ~LongNumber();
 
         // arithmetic operators
@@ -55,6 +57,9 @@ namespace LongNumbers {
         bool operator >= (const LongNumber& other) const;
         bool operator <= (const LongNumber& other) const;
         bool operator < (const LongNumber& other) const;
+
+        // output methods
+        std::string toString() const;
     };
 
     //LongNumber operator ""_longnum(long double num);
