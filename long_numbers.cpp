@@ -50,26 +50,29 @@ namespace LongNumbers{
     // auxiliary functions
 
     // deletes zeros in the beginning and fixes precision
-    void LongNumber::normalize(){
+    void LongNumber::normalize() {
         while (this->digits.size() > this->point_id && this->digits.front() == 0) {
             this->digits.erase(this->digits.begin());
-        }
-        while (this->point_id < this->precision){
-            this->digits.push_back(0);
-            this->point_id++;
-        }
-        while (this->point_id > this->precision){
-            this->digits.pop_back();
             this->point_id--;
         }
-    }
+
+        if (this->digits.size() > this->point_id + this->precision) {
+            this->digits.resize(this->point_id + this->precision);
+        }
+    }    
 
     // for division operator
     void LongNumber::alignPrecision(LongNumber const& other) {
         auto max_precision = std::max(this->precision, other.getPrecision());
         while (this->point_id < max_precision) {
             this->digits.push_back(0);
-            this->point_id++;
+            // this->point_id++;
+        }
+        int p1 = this->precision;
+        int p2 = other.getPrecision();
+        int p = std::max(p1, p2);
+        while (p1 < p2) {
+            this->digits.insert(this->digits.begin(), 0);
         }
     }
 
@@ -93,61 +96,122 @@ namespace LongNumbers{
 
     // string constructor
     LongNumber::LongNumber(std::string num, int prec) : precision(prec), point_id(prec) {
-        std::string integer_str = num.find('.') == std::string::npos ? num : num.substr(0, num.find('.'));
-        std::string fraction_str = num.find('.') == std::string::npos ? "" : num.substr(num.find('.') + 1);
-
+        if (num.empty()) {
+            throw std::invalid_argument("Empty string cannot be converted to LongNumber.");
+        }
+    
         this->sign = (num[0] == '-');
-        if (this->sign){ num = integer_str.substr(1); }
-
-        auto integer_val = std::stoull(integer_str);
-        while (integer_val > 0){
+        if (this->sign) num = num.substr(1);
+    
+        size_t dot_pos = num.find('.');
+        std::string integer_str = (dot_pos == std::string::npos) ? num : num.substr(0, dot_pos);
+        std::string fraction_str = (dot_pos == std::string::npos) ? "" : num.substr(dot_pos + 1);
+    
+        unsigned long long integer_val = 0;
+        if (!integer_str.empty()) {
+            integer_val = std::stoull(integer_str);
+        }
+        
+        do {
             digits.insert(digits.begin(), integer_val % 2);
             integer_val /= 2;
-        }
-
-        auto fraction_val = fraction_str.empty() ? 0.0 : std::stod("0." + fraction_str);
-
-        for (int i = 0; i < precision; i++) {
+        } while (integer_val > 0);
+    
+        this->point_id = digits.size();
+    
+        double fraction_val = fraction_str.empty() ? 0.0 : std::stod("0." + fraction_str);
+        std::vector<short> frac_digits;
+    
+        for (int i = 0; i < precision + 1; i++) {
             fraction_val *= 2;
-            digits.push_back(fraction_val >= 1.0);
-            if (fraction_val >= 1.0) { fraction_val -= 1.0; }
+            frac_digits.push_back(static_cast<short>(fraction_val));
+            if (fraction_val >= 1.0) {
+                fraction_val -= 1.0;
+            }
         }
-
-        this->point_id = this->digits.size() - this->precision;
-
+    
+        if (frac_digits.size() > precision && frac_digits[precision] == 1) {
+            int carry = 1;
+            for (int i = precision - 1; i >= 0 && carry; i--) {
+                frac_digits[i] += carry;
+                carry = frac_digits[i] / 2;
+                frac_digits[i] %= 2;
+            }
+            
+            if (carry) {
+                int carry_int = 1;
+                for (int i = point_id - 1; i >= 0 && carry_int; i--) {
+                    digits[i] += carry_int;
+                    carry_int = digits[i] / 2;
+                    digits[i] %= 2;
+                }
+                if (carry_int) {
+                    digits.insert(digits.begin(), 1);
+                    point_id++;
+                }
+            }
+        }
+    
+        frac_digits.resize(precision);
+        digits.insert(digits.end(), frac_digits.begin(), frac_digits.end());
+    
         normalize();
     }
+    
+    
 
     // long double constructor
     LongNumber::LongNumber(long double num, int prec) : precision(prec) {
         this->sign = (num < 0);
         num = std::abs(num);
-    
+        
         auto integer_val = static_cast<unsigned long long>(num);
         auto fraction_val = num - static_cast<long double>(integer_val);
-    
-        if (integer_val == 0) {
-            digits.push_back(0);
-        } else {
-            while (integer_val > 0) {
-                digits.insert(digits.begin(), integer_val % 2);
-                integer_val /= 2;
-            }
-        }
-    
+
+        do {
+            digits.insert(digits.begin(), integer_val % 2);
+            integer_val /= 2;
+        } while (integer_val > 0);
+        
         this->point_id = digits.size();
-    
-        for (int i = 0; i < precision; i++) {
+
+        std::vector<short> frac_digits;
+        for (int i = 0; i < precision + 1; i++) {
             fraction_val *= 2;
+            frac_digits.push_back(static_cast<short>(fraction_val));
             if (fraction_val >= 1.0) {
-                digits.push_back(1);
                 fraction_val -= 1.0;
-            } else {
-                digits.push_back(0);
             }
         }
+
+        if (frac_digits.size() > precision && frac_digits[precision] == 1) {
+            int carry = 1;
+            for (int i = precision - 1; i >= 0 && carry; i--) {
+                frac_digits[i] += carry;
+                carry = frac_digits[i] / 2;
+                frac_digits[i] %= 2;
+            }
+    
+            if (carry) {
+                int carry_int = 1;
+                for (int i = point_id - 1; i >= 0 && carry_int; i--) {
+                    digits[i] += carry_int;
+                    carry_int = digits[i] / 2;
+                    digits[i] %= 2;
+                }
+                if (carry_int) {
+                    digits.insert(digits.begin(), 1);
+                    point_id++;
+                }
+            }
+        }
+    
+        frac_digits.resize(precision);
+        digits.insert(digits.end(), frac_digits.begin(), frac_digits.end());
+    
         normalize();
     }
+    
     
 
     // copy constructor
@@ -179,55 +243,31 @@ namespace LongNumbers{
     LongNumber::~LongNumber() = default;
 
     // arithmetic operators
-    LongNumber LongNumber::operator + (const LongNumber& other) const{
-        std::vector<short> other_digits = other.getDigits();
-        std::vector<short> this_digits = this->digits;
-        size_t res_size = std::max(this_digits.size(), other_digits.size()) + 1;
-        while (this_digits.size() < res_size) this_digits.insert(this_digits.begin(), 0);
-        while (other_digits.size() < res_size) other_digits.insert(other_digits.begin(), 0);
-
+    LongNumber LongNumber::operator+(const LongNumber& other) const {
+        LongNumber a = *this, b = other;
+        a.alignPrecision(b);
+        b.alignPrecision(a);
+    
+        std::vector<short> result_digits(std::max(a.digits.size(), b.digits.size()) + 1, 0);
+    
+        int carry = 0;
+        for (int i = result_digits.size() - 1; i >= 0; i--) {
+            // int sum = (i < a.digits.size() ? a.digits[i] : 0) +
+            //           (i < b.digits.size() ? b.digits[i] : 0) +
+            //           carry;
+            int sum = a.digits[i] + b.digits[i] + carry;
+            result_digits[i] = sum % 2;
+            carry = sum / 2;
+        }
+    
         LongNumber res;
-        res.setSize(res_size);
-        std::vector<short> temp_res(res_size, 0);
-
-        bool is_add_op = !(other.getSign() ^ this->sign); // checks if the signs are the same
-        bool is_borrow = false;
-        if (is_add_op){ // signs are the same, we add
-            for(long int i = res_size - 1; i >= 0; i--){
-                short sum = (i < this_digits.size() ? this_digits[i] : 0) +
-                            (i < other_digits.size() ? other_digits[i] : 0) +
-                            is_borrow;
-                temp_res[i] = sum % 2;
-                is_borrow = sum / 2;
-            }
-            res.setSign(this->sign);
-        }
-        else{  // signs differ, we substract
-            const LongNumber& larger = (this->abs() > other.abs()) ? *this : other;
-            const LongNumber& smaller = (this->abs() > other.abs()) ? other : *this;
-            auto larger_digits = larger.getDigits();
-            auto smaller_digits = smaller.getDigits();
-
-            for (long int i = res_size - 1; i >= 0; --i) {
-                short diff = (i < larger_digits.size() ? larger_digits[i] : 0) -
-                            (i < smaller_digits.size() ? smaller_digits[i] : 0) -
-                            is_borrow;
-                if (diff < 0) {
-                    diff += 2;
-                    is_borrow = true;
-                } else {
-                    is_borrow = false;
-                }
-                temp_res[i] = diff;
-            }
-            res.setSign(larger.getSign());
-        }
-
-        res.setDigits(temp_res);
+        res.setDigits(result_digits);
+        res.setPointId(a.getPointId());
+        res.setSign(this->sign);
         res.normalize();
-
         return res;
-    };
+    }
+    
 
     LongNumber LongNumber::operator - (LongNumber const& other) const{
         // a - b = a + (-b)
@@ -235,7 +275,7 @@ namespace LongNumbers{
         if (other.getSign() == 1){ new_other.setSign(0); }
         else{ new_other.setSign(1); }
         return *this + new_other;
-    };
+    }
 
     LongNumber LongNumber::operator * (LongNumber const& other) const{
         LongNumber multiplicand = this->abs();
@@ -268,47 +308,32 @@ namespace LongNumbers{
         return res;
     }
 
-    LongNumber LongNumber::operator / (LongNumber const& other) const{
-        // if (other.isZero()) {
-        //     throw std::invalid_argument("Division by zero");
-        // }
-
+    LongNumber LongNumber::operator/(const LongNumber& other) const {
         LongNumber dividend = this->abs();
         LongNumber divisor = other.abs();
-
         dividend.alignPrecision(divisor);
-        auto dividend_digits = dividend.getDigits();
-
+    
         LongNumber res;
-        bool res_sign = this->sign ^ other.sign;
-        res.setSign(res_sign);
         res.setPointId(dividend.getPointId());
-        auto temp_res = res.getDigits();
-
-        LongNumber temp_dividend;
-        temp_dividend.setDigits(dividend.getDigits());
-        temp_dividend.setPointId(dividend.getPointId());
-        auto temp_dividend_digits = dividend.getDigits();
-
-        for (size_t i = 0; i < dividend_digits.size(); i++) {
-            // <<res
-            temp_res[i] = 0; // заполняем по индексу
-
-            temp_dividend_digits.push_back(dividend_digits[i]);
-            temp_dividend.setDigits(temp_dividend_digits);
-            temp_dividend.normalize();
-
-            if (temp_dividend >= divisor) {
-                temp_dividend = temp_dividend - divisor;
-                temp_res.back() = 1;
+        res.setSign(this->sign ^ other.sign);
+        std::vector<short> result_digits(dividend.digits.size(), 0);
+    
+        LongNumber remainder;
+        for (size_t i = 0; i < dividend.digits.size(); i++) {
+            remainder.digits.push_back(dividend.digits[i]);
+            remainder.normalize();
+    
+            if (remainder >= divisor) {
+                remainder = remainder - divisor;
+                result_digits[i] = 1;
             }
         }
-
-        res.setDigits(temp_res);
+    
+        res.setDigits(result_digits);
         res.normalize();
-
         return res;
     }
+    
 
     // comparison operators
     bool LongNumber::operator == (const LongNumber& other) const {
